@@ -17,7 +17,7 @@ export default function MappingPage() {
   const queryClient = useQueryClient();
   const datasetId = params.datasetId as string;
 
-  const { data: dataset, isLoading: isDatasetLoading } = useQuery({
+  const { data: dataset, isLoading: isDatasetLoading, error: datasetError } = useQuery({
     queryKey: ['dataset', activeWorkspace?.id, datasetId],
     queryFn: () => getDatasetDetail(activeWorkspace!.id, datasetId),
     enabled: !!activeWorkspace && !!datasetId,
@@ -32,6 +32,17 @@ export default function MappingPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if ((datasetError || (!isDatasetLoading && !dataset)) && activeWorkspace) {
+      console.warn("Dataset not found in mapping view. Redirecting to workspace datasets...");
+      queryClient.invalidateQueries({ queryKey: ['datasets', activeWorkspace.id] });
+      const timer = setTimeout(() => {
+        router.replace(`/w/${activeWorkspace.id}/datasets`);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [datasetError, dataset, isDatasetLoading, activeWorkspace, router, queryClient]);
 
   // Initialize state from dataset
   useEffect(() => {
@@ -114,7 +125,21 @@ export default function MappingPage() {
     );
   }
 
-  if (!dataset) return null;
+  if (datasetError || !dataset) {
+    return (
+      <div className="p-6 rounded-xl bg-destructive/10 text-destructive flex flex-col items-center justify-center gap-4 border border-destructive/20 text-center max-w-lg mx-auto my-12">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <div>
+          <h3 className="font-bold text-lg">Dataset Unavailable</h3>
+          <p className="text-sm mt-1 text-slate-600">
+            The dataset you are trying to map is not available. Redirecting to your workspace datasets list...
+          </p>
+        </div>
+        <Loader2 className="h-5 w-5 animate-spin text-destructive/70" />
+      </div>
+    );
+  }
+
 
   const totalCols = dataset.columns.length;
   const mappedCount = Object.values(mappingState).filter(s => s.mapping_status === 'mapped').length;

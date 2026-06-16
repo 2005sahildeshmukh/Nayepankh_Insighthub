@@ -6,7 +6,7 @@ import { getDatasetDetail, getDatasetPreview, deleteDataset } from "@/lib/api/da
 import { useWorkspace } from "@/providers/workspace-provider";
 import { ArrowLeft, Trash2, FileSpreadsheet, Loader2, AlertCircle, Settings } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatFileSize } from "@/lib/formatters";
 import { DatasetTabs } from "@/components/workspace/datasets/DatasetTabs";
 
@@ -45,6 +45,19 @@ export default function DatasetDetailPage() {
     }
   };
 
+  useEffect(() => {
+    if ((datasetError || (!isDatasetLoading && !dataset)) && activeWorkspace) {
+      console.warn("Dataset not found or load error. Redirecting to workspace datasets...");
+      // Invalidate the stale dataset list queries to refresh cache
+      queryClient.invalidateQueries({ queryKey: ['datasets', activeWorkspace.id] });
+      
+      const timer = setTimeout(() => {
+        router.replace(`/w/${activeWorkspace.id}/datasets`);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [datasetError, dataset, isDatasetLoading, activeWorkspace, router, queryClient]);
+
   if (!activeWorkspace) return null;
 
   if (isDatasetLoading) {
@@ -57,9 +70,15 @@ export default function DatasetDetailPage() {
 
   if (datasetError || !dataset) {
     return (
-      <div className="p-4 rounded-md bg-destructive/10 text-destructive flex items-center gap-3 border border-destructive/20">
-        <AlertCircle className="h-5 w-5" />
-        <p>Failed to load dataset details.</p>
+      <div className="p-6 rounded-xl bg-destructive/10 text-destructive flex flex-col items-center justify-center gap-4 border border-destructive/20 text-center max-w-lg mx-auto my-12">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <div>
+          <h3 className="font-bold text-lg">Dataset Unavailable</h3>
+          <p className="text-sm mt-1 text-slate-600">
+            The selected dataset is no longer available. Redirecting to your workspace datasets list...
+          </p>
+        </div>
+        <Loader2 className="h-5 w-5 animate-spin text-destructive/70" />
       </div>
     );
   }

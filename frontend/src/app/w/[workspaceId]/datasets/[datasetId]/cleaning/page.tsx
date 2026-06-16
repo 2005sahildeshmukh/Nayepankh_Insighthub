@@ -22,13 +22,16 @@ const DEFAULT_CONFIG: CleaningConfiguration = {
   outlier_rules: []
 };
 
+import { useRouter } from "next/navigation";
+
 export default function CleaningPage() {
   const params = useParams();
+  const router = useRouter();
   const { activeWorkspace } = useWorkspace();
   const queryClient = useQueryClient();
   const datasetId = params.datasetId as string;
 
-  const { isLoading: isDatasetLoading } = useQuery({
+  const { isLoading: isDatasetLoading, error: datasetError, data: dataset } = useQuery({
     queryKey: ['dataset', activeWorkspace?.id, datasetId],
     queryFn: () => getDatasetDetail(activeWorkspace!.id, datasetId),
     enabled: !!activeWorkspace && !!datasetId,
@@ -45,6 +48,18 @@ export default function CleaningPage() {
     queryFn: () => cleaningApi.getPlan(activeWorkspace!.id, datasetId),
     enabled: !!activeWorkspace && !!datasetId,
   });
+
+  useEffect(() => {
+    if ((datasetError || (!isDatasetLoading && !dataset)) && activeWorkspace) {
+      console.warn("Dataset not found in cleaning view. Redirecting to workspace datasets...");
+      queryClient.invalidateQueries({ queryKey: ['datasets', activeWorkspace.id] });
+      const timer = setTimeout(() => {
+        router.replace(`/w/${activeWorkspace.id}/datasets`);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [datasetError, dataset, isDatasetLoading, activeWorkspace, router, queryClient]);
+
 
   const [config, setConfig] = useState<CleaningConfiguration>(DEFAULT_CONFIG);
   const [preview, setPreview] = useState<CleaningPreviewResponse | null>(null);
@@ -160,6 +175,22 @@ export default function CleaningPage() {
       </div>
     );
   }
+
+  if (datasetError || !dataset) {
+    return (
+      <div className="p-6 rounded-xl bg-destructive/10 text-destructive flex flex-col items-center justify-center gap-4 border border-destructive/20 text-center max-w-lg mx-auto my-12">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <div>
+          <h3 className="font-bold text-lg">Dataset Unavailable</h3>
+          <p className="text-sm mt-1 text-slate-600">
+            The dataset you are trying to clean is not available. Redirecting to your workspace datasets list...
+          </p>
+        </div>
+        <Loader2 className="h-5 w-5 animate-spin text-destructive/70" />
+      </div>
+    );
+  }
+
 
   const activeColProfile = profile?.columns.find(c => c.final_name === activeColumnId);
   

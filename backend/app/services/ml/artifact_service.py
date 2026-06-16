@@ -1,10 +1,14 @@
 import os
 import joblib
 from typing import Any
+from pathlib import Path
+from app.core.config import settings
 
-# Ensure storage path exists
-STORAGE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "storage", "models")
+# Derive model storage artifacts directory from settings.data_root_dir
+STORAGE_DIR = str(settings.data_root_dir / "artifacts" / "models")
 os.makedirs(STORAGE_DIR, exist_ok=True)
+
+
 
 class MLArtifactService:
     @staticmethod

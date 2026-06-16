@@ -4,9 +4,11 @@ from pathlib import Path
 from fastapi import UploadFile, HTTPException
 from app.core.config import settings
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-UPLOAD_DIR = BASE_DIR / "data" / "uploads"
+# Derive uploads directory from settings.data_root_dir
+UPLOAD_DIR = settings.data_root_dir / "uploads"
 MAX_FILE_SIZE = 25 * 1024 * 1024 # 25 MB
+
+
 
 class FileStorageService:
     @staticmethod
